@@ -36,20 +36,18 @@ app.post('/send-notification', async (req, res) => {
     console.log('Sending notification:', { title, body, topic });
     
     const message = {
-      notification: {
-        title: title,
-        body: body
-      },
-      data: data || {},
-      topic: topic,
-      android: {
-        priority: 'high',
-        notification: {
-          sound: 'default',
-          default_vibrate_timings: true
-        }
-      }
-    };
+  // Remove the notification object completely
+  data: {
+    title: title,        // Move title to data
+    body: body,          // Move body to data
+    ...(data || {})      // Include any additional data
+  },
+  topic: topic,
+  android: {
+    priority: 'high',
+    // Remove the notification object from android section too
+  }
+};
     
     const response = await admin.messaging().send(message);
     console.log('Successfully sent message:', response);
