@@ -67,21 +67,28 @@ app.post('/send-notification', async (req, res) => {
 });
 
 // Send problem notification
-// REPLACE your /send-problem-notification endpoint with this:
+
 app.post('/send-problem-notification', async (req, res) => {
   try {
-    const { description, location, reportedBy, targetAudience } = req.body;
+    const { description, location, reportedBy, reporterRole } = req.body;
     
-    // Determine which topics to send to
+    console.log(`Problem reported by: ${reportedBy} (Role: ${reporterRole})`);
+    
+    // Determine which topics to send to based on reporter role
     let topics = [];
-    if (targetAudience === 'all_users') {
-      topics = ['technicians', 'admins', 'operators'];
+    
+    if (reporterRole === 'OPERATOR') {
+      topics = ['technicians', 'admins'];  // Operators → notify techs & admins
+      console.log('Operator reported problem → notifying technicians and admins');
+    } else if (reporterRole === 'ADMIN') {
+      topics = ['technicians'];  // Admins → notify only technicians (not operators)
+      console.log('Admin reported problem → notifying only technicians');
     } else {
-      // Default: send to both technicians and admins (exclude operators)
-      topics = ['technicians', 'admins'];
+      console.log(`Unknown reporter role: ${reporterRole} → using default (techs + admins)`);
+      topics = ['technicians', 'admins'];  // Default fallback
     }
     
-    console.log(`Sending problem notification to topics: ${topics.join(', ')}`);
+    console.log(`Sending notifications to topics: ${topics.join(', ')}`);
     
     const results = [];
     
@@ -97,6 +104,7 @@ app.post('/send-problem-notification', async (req, res) => {
           description: description,
           location: location,
           reportedBy: reportedBy,
+          reporterRole: reporterRole,  // Add this
           timestamp: Date.now().toString()
         },
         topic: topic,
