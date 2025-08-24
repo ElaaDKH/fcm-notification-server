@@ -67,39 +67,67 @@ app.post('/send-notification', async (req, res) => {
 });
 
 // Send problem notification
+// REPLACE your /send-problem-notification endpoint with this:
 app.post('/send-problem-notification', async (req, res) => {
   try {
-    const { description, location, reportedBy } = req.body;
+    const { description, location, reportedBy, targetAudience } = req.body;
     
-    const message = {
-      notification: {
-        title: 'Nouveau problème signalé',
-        body: `${description} - ${location}`
-      },
-      data: {
-        type: 'new_problem',
-        description: description,
-        location: location,
-        reportedBy: reportedBy,
-        timestamp: Date.now().toString()
-      },
-      topic: 'technicians',
-      android: {
-        priority: 'high',
+    // Determine which topics to send to
+    let topics = [];
+    if (targetAudience === 'all_users') {
+      topics = ['technicians', 'admins', 'operators'];
+    } else {
+      // Default: send to both technicians and admins (exclude operators)
+      topics = ['technicians', 'admins'];
+    }
+    
+    console.log(`Sending problem notification to topics: ${topics.join(', ')}`);
+    
+    const results = [];
+    
+    // Send to each topic
+    for (const topic of topics) {
+      const message = {
         notification: {
-          sound: 'default',
-          default_vibrate_timings: true
+          title: 'Nouveau problème signalé',
+          body: `${description} - ${location}`
+        },
+        data: {
+          type: 'new_problem',
+          description: description,
+          location: location,
+          reportedBy: reportedBy,
+          timestamp: Date.now().toString()
+        },
+        topic: topic,
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            default_vibrate_timings: true
+          }
         }
+      };
+      
+      try {
+        const response = await admin.messaging().send(message);
+        console.log(`✅ Problem notification sent to ${topic}:`, response);
+        results.push({ topic, success: true, messageId: response });
+      } catch (error) {
+        console.error(`❌ Error sending to ${topic}:`, error);
+        results.push({ topic, success: false, error: error.message });
       }
-    };
+    }
     
-    const response = await admin.messaging().send(message);
-    console.log('Problem notification sent:', response);
-    
-    res.json({ success: true, messageId: response });
+    res.json({ 
+      success: true, 
+      results: results,
+      totalTopics: topics.length,
+      successCount: results.filter(r => r.success).length
+    });
     
   } catch (error) {
-    console.error('Error sending problem notification:', error);
+    console.error('Error in send-problem-notification:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
